@@ -64,24 +64,34 @@ void configLayout(GLuint vertexbuffer, GLuint colorbuffer){
 	glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,0,(void*)0);
 }
 
+// ROAD POSITION
 glm::mat3 move_roud_lines(
 	glm::vec3(1, 0, 0),
 	glm::vec3(0, 1, 0),
 	glm::vec3(0, 0, 1)
 );
-
+// CAR 1 POSITION
 glm::mat3 move_marea_glx(
 	glm::vec3(1, 0, 0),
 	glm::vec3(0, 1, 0),
 	glm::vec3(0, 0, 1)
 );
+// CAR 2 POSITION
+glm::mat3 move_car_2(
+	glm::vec3(1, 0, 0),
+	glm::vec3(0, 1, 0),
+	glm::vec3(0, 0, 1)
+);
+
+
+float velocidade = 0.01;
 
 void KeyboardMovimentObject(GLFWwindow *window, int key, int scancode, int action, int mods){
 	// VIRA CARO
 	if (key == GLFW_KEY_RIGHT){
 		switch (action){
 			case GLFW_PRESS:
-				if(move_marea_glx[0][2]+0.65 < 1.3){
+				if(move_marea_glx[0][2]+0.65 < 1.3 && velocidade > 0){
 					move_marea_glx[0][2] += 0.65;
 				}		
 			break;
@@ -90,12 +100,43 @@ void KeyboardMovimentObject(GLFWwindow *window, int key, int scancode, int actio
 	if (key == GLFW_KEY_LEFT){
 		switch (action){
 			case GLFW_PRESS:
-				if(move_marea_glx[0][2] > 0){
+				if(move_marea_glx[0][2] > 0 && velocidade > 0){
 					move_marea_glx[0][2] -= 0.65;
-				}		
+
+					if(move_marea_glx[0][2] < 0) move_marea_glx[0][2] = 0;
+				}
 			break;
 		}		
 	}
+
+	// VELOCIDADE
+	if(key == GLFW_KEY_UP){
+		if(velocidade == 0) velocidade = 0.01;
+		if(velocidade < 0.05){
+			velocidade *= 1.2;
+		}		
+	}
+	if(key == GLFW_KEY_DOWN){
+		if(velocidade > 0.01){
+			velocidade *= 0.8;
+		}else{
+			velocidade = 0;
+		}
+	}
+}
+
+void randPositionCar2(){
+	int rand = random() % 4;
+
+	rand <= 1 && move_car_2[0][2] != 0 ?
+		move_car_2[0][2] = 0 :
+	rand <= 2 && move_car_2[0][2] != 0.65 ?
+		move_car_2[0][2] = 0.65 :
+	rand <= 3 && move_car_2[0][2] != 1.3 ?
+		move_car_2[0][2] = 1.3 :
+	move_car_2[0][2] = 0;
+
+	move_car_2[1][2] = 2;
 }
 
 int main( void ){
@@ -641,17 +682,58 @@ int main( void ){
 		-45, -75, 1,
 		-50, -85, 1,
 		-45, -85, 1,
-		// // Roda esquerda traseira
+		// Roda esquerda traseira
 		-85, -75, 1,
 		-80, -75, 1,
 		-85, -85, 1,
 		-80, -75, 1,
 		-85, -85, 1,
 		-80, -85, 1,
+
+		// BASE
+		-50, -30, 1,
+		-80, -30, 1,
+		-50, -90, 1,
+		-80, -30, 1,
+		-50, -90, 1,
+		-80, -90, 1,
 	};
 
 	static const GLfloat color_marea_glx[] = {
 		1
+	};
+
+	static const GLfloat color_car_2[] = {
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1
 	};
 
 	GLuint vertexbuffer;
@@ -663,19 +745,17 @@ int main( void ){
 	GLuint MatrixID = glGetUniformLocation(programID, "MatrizCombinada");
 	glm::mat3 mMove_road_lines = glm::mat3(1.0f);
 	glm::mat3 mMove_marea_glx = glm::mat3(1.0f);
-	
-	float velocidade = 0.01;
+	glm::mat3 mMove_car_2 = glm::mat3(1.0f);
+
+	move_car_2[1][2] = 2;
+	randPositionCar2();
 	do{
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 		glUseProgram(programID);
 		configLayout(vertexbuffer, colorbuffer);
 
 		// TRANSFORMAÇÕES
-
 		glfwSetKeyCallback(window, KeyboardMovimentObject);
-
-		// move_roud_lines[2][1] += 0.01;
-
 
 		// MOVE ROAD LINE
 		if(move_roud_lines[1][2] > -0.3){
@@ -683,20 +763,21 @@ int main( void ){
 		}else{
 			move_roud_lines[1][2] = -velocidade;
 		}
-
-		// VELOCIDADE
-		if(glfwGetKey(window, GLFW_KEY_UP)){
-			if(velocidade < 0.05){
-				velocidade *= 1.1;
-			}
+		
+		// MOVE CAR 2
+		if(move_car_2[1][2] > -1){
+			move_car_2[1][2] += -velocidade;
+		}else{
+			move_car_2[1][2] = 2;
+			randPositionCar2();
 		}
-		if(glfwGetKey(window, GLFW_KEY_DOWN )){
-			if(velocidade > 0){
-				velocidade *= 0.9;
-			}
+		// BATIDA
+		if(
+			mMove_car_2[0][2] == mMove_marea_glx[0][2] &&
+			mMove_car_2[1][2] <= mMove_marea_glx[1][2] + 0.6
+		){
+			move_car_2[1][2] += 0.1;
 		}
-
-		// INIT OBJETOS ==================================================================================
 
 		// ROAD LINES
 		mMove_road_lines = move_roud_lines;
@@ -714,6 +795,16 @@ int main( void ){
 
 		glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(color_marea_glx), color_marea_glx, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_marea_glx), vertex_marea_glx, GL_STATIC_DRAW);
+		glDrawArrays(GL_TRIANGLES, 0, sizeof(vertex_marea_glx)); 
+		
+		// CARRO 2
+		mMove_car_2 = move_car_2;
+		glUniformMatrix3fv(MatrixID, 1, GL_TRUE, &mMove_car_2[0][0]);
+
+		glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(color_car_2), color_car_2, GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_marea_glx), vertex_marea_glx, GL_STATIC_DRAW);
 		glDrawArrays(GL_TRIANGLES, 0, sizeof(vertex_marea_glx)); 
