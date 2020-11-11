@@ -7,8 +7,8 @@ out vec3 fragmentColor;
 
 uniform mat3 MatrizCombinada;
 
-void main(){
-		gl_Position.xyw = MatrizCombinada * vec3(vertexPosition_modelspace.xy, 100);
-    	gl_Position.z =  vertexPosition_modelspace.z *0.1;
-    	fragmentColor = vertexColor;
+void main () {
+	gl_Position.xyw = MatrizCombinada * vec3(vertexPosition_modelspace.xy, 100);
+	gl_Position.z =  vertexPosition_modelspace.z *0.1;
+	fragmentColor = vertexColor;
 }
