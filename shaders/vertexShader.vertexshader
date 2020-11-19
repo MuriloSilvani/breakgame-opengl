@@ -1,14 +1,13 @@
 #version 330 core
 
-layout(location = 0) in vec3 vertexPosition_modelspace;//XY
-layout(location = 1) in vec3 vertexColor;//RGB
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec3 vertexColor;
 
 out vec3 fragmentColor;
-
 uniform mat3 MatrizCombinada;
 
-void main () {
-	gl_Position.xyw = MatrizCombinada * vec3(vertexPosition_modelspace.xy, 100);
-	gl_Position.z =  vertexPosition_modelspace.z *0.1;
+void main(){
+	gl_Position.xyw = MatrizCombinada * vec3(vertexPosition_modelspace.xy * 0.01, 1);
+	gl_Position.z = vertexPosition_modelspace.z * 0.01;
 	fragmentColor = vertexColor;
 }

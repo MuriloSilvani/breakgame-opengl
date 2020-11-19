@@ -1,11 +1,11 @@
 CPPSOURCES = $(wildcard *.cpp)
 
-Target: Breakgame
+Target: BrickGame
 
 all:	Target
 
-Breakgame: $(CPPSOURCES:.cpp=.o)
+BrickGame: $(CPPSOURCES:.cpp=.o)
 	g++ $< common/shader.cpp -o $@ -lglfw -lGLEW -lGL
 
 run:
-	./Breakgame
+	./BrickGame
