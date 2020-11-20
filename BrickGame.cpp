@@ -5,6 +5,7 @@ GLFWwindow *window;
 #include <glm/glm.hpp>
 using namespace glm;
 #include "common/shader.hpp"
+#include "common/text2D.hpp"
 
 const GLint WIDTH = 800, HEIGHT = 800;
 const GLfloat R = 0.0, G = 0.0, B = 0.0, A = 0.0;
@@ -123,10 +124,68 @@ glm::mat3 move_road_lines = glm::mat3(1.0f);
 glm::mat3 move_car_1 = glm::mat3(1.0f);
 glm::mat3 move_car_2 = glm::mat3(1.0f);
 
-float velocidade = 0.01;
+char text[256];
+char state = 's';
+// s = start
+// p = play
+// e = end
 
-void MouseKeyboardMovimentObject(double deltaTime)
+float speed = 0.01;
+float distancedrived = 0.0;
+
+// void moveCar(double deltaTime)
+void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	// VIRA CARO
+	if (key == GLFW_KEY_RIGHT)
+	{
+		switch (action)
+		{
+		case GLFW_PRESS:
+			if (move_car_1[0][2] + 0.65 < 1.3 && speed > 0)
+			{
+				move_car_1[0][2] += 0.65;
+			}
+			break;
+		}
+	}
+	if (key == GLFW_KEY_LEFT)
+	{
+		switch (action)
+		{
+		case GLFW_PRESS:
+			if (move_car_1[0][2] > 0 && speed > 0)
+			{
+				move_car_1[0][2] -= 0.65;
+
+				if (move_car_1[0][2] < 0)
+					move_car_1[0][2] = 0;
+			}
+			break;
+		}
+	}
+
+	// speed
+	if (key == GLFW_KEY_UP)
+	{
+		if (speed == 0)
+			speed = 0.01;
+		if (speed < 0.05)
+		{
+			speed *= 1.2;
+		}
+	}
+	if (key == GLFW_KEY_DOWN)
+	{
+		if (speed > 0.01)
+		{
+			speed *= 0.8;
+		}
+		else
+		{
+			speed = 0;
+		}
+	}
 }
 
 void randPositionCar2()
@@ -153,6 +212,8 @@ int main(void)
 	GLuint MatrixID = glGetUniformLocation(programID, "MatrizCombinada");
 	glm::mat3 MatrizCombinada = glm::mat3(1.0f);
 
+	initText2D("utils/Holstein.DDS");
+
 	std::vector<glm::vec2> modelRoad = loadModel("models/road.txt", 0);
 	std::vector<glm::vec2> modelLines = loadModel("models/lines.txt", 1);
 	std::vector<glm::vec2> modelCar = loadModel("models/car.txt", 2);
@@ -176,41 +237,71 @@ int main(void)
 		glUseProgram(programID);
 		configLayout(vertexbuffer, colorbuffer);
 
-		MouseKeyboardMovimentObject(deltaTime);
-
-		if (move_road_lines[1][2] > -0.3)
+		// start
+		if (state == 's')
 		{
-			move_road_lines[1][2] -= velocidade;
-		}
-		else
-		{
-			move_road_lines[1][2] = -velocidade;
+			sprintf(text, "%s", "JOGAR");
+			printText2D(text, 280, 400, 50);
 		}
 
-		if (move_car_2[1][2] > -1)
+		// end
+		if (state == 'e')
 		{
-			move_car_2[1][2] += -velocidade;
-		}
-		else
-		{
-			move_car_2[1][2] = 2;
-			randPositionCar2();
 		}
 
-		MatrizCombinada = move_road;
-		drawModel(modelRoad, MatrizCombinada, MatrixID, 0.15, 0.15, 0.15);
+		//
+		// if (state == '')
+		// {
+		// }
 
-		MatrizCombinada = move_road_lines;
-		drawModel(modelLines, MatrizCombinada, MatrixID, 1.0, 1.0, 0.0);
+		// play
+		if (state == 'p')
+		{
+			glfwSetKeyCallback(window, moveCar);
 
-		MatrizCombinada = move_car_1;
-		drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 1.0, 1.0);
+			if (move_road_lines[1][2] > -0.3)
+			{
+				move_road_lines[1][2] -= speed;
+			}
+			else
+			{
+				move_road_lines[1][2] = -speed;
+			}
 
-		MatrizCombinada = move_car_2;
-		drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 0.0, 1.0);
+			if (move_car_2[1][2] > -1)
+			{
+				move_car_2[1][2] += -speed;
+			}
+			else
+			{
+				move_car_2[1][2] = 2;
+				randPositionCar2();
+			}
+
+			MatrizCombinada = move_road;
+			drawModel(modelRoad, MatrizCombinada, MatrixID, 0.15, 0.15, 0.15);
+
+			MatrizCombinada = move_road_lines;
+			drawModel(modelLines, MatrizCombinada, MatrixID, 1.0, 1.0, 0.0);
+
+			MatrizCombinada = move_car_1;
+			drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 1.0, 1.0);
+
+			MatrizCombinada = move_car_2;
+			drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 0.0, 1.0);
+
+			distancedrived += speed * lastTime;
+
+			sprintf(text, "%.2fm", distancedrived);
+			printText2D(text, 20, 5, 20);
+
+			sprintf(text, "%.2fm/s", speed * 10);
+			printText2D(text, 620, 5, 20);
+		}
 
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
