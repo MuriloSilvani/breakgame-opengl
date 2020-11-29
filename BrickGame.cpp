@@ -6,10 +6,47 @@ GLFWwindow *window;
 using namespace glm;
 #include "common/shader.hpp"
 #include "common/text2D.hpp"
+#include "AntTweakBar/include/AntTweakBar.h"
 
-const GLint WIDTH = 800, HEIGHT = 800;
+const GLint WIDTH = 1280, HEIGHT = 720;
 const GLfloat R = 0.0, G = 0.0, B = 0.0, A = 0.0;
 GLuint colorbuffer, vertexbuffer;
+
+glm::mat3 move_road = glm::mat3(1.0f);
+glm::mat3 move_road_lines = glm::mat3(1.0f);
+glm::mat3 move_car_1 = glm::mat3(1.0f);
+glm::mat3 move_car_2 = glm::mat3(1.0f);
+
+double color_road[] = {0.15, 0.15, 0.15};
+double color_road_lines[] = {1.0, 1.0, 0.0};
+double color_car_1[] = {1.0, 1.0, 1.0};
+double color_car_2[] = {1.0, 0.0, 1.0};
+
+char text[255];
+char state[20] = "play";
+// start
+// scoreboard
+// settings
+// play
+// end
+
+float speed = 1;
+float distancedrived = 0.0;
+
+void addBars()
+{
+	TwInit(TW_OPENGL_CORE, NULL);
+	TwWindowSize(WIDTH, HEIGHT);
+
+	TwBar *bar = TwNewBar("BRICKGAME");
+	TwSetParam(bar, NULL, "position", TW_PARAM_CSTRING, 1, "550 200");
+	TwSetParam(bar, NULL, "refresh", TW_PARAM_CSTRING, 1, "0.1");
+
+	TwAddVarRW(bar, "color_road", TW_TYPE_COLOR4F, &color_road, "colormode=rgb");
+	TwAddVarRW(bar, "color_road_lines", TW_TYPE_COLOR4F, &color_road_lines, "colormode=rgb");
+	TwAddVarRW(bar, "color_car_1", TW_TYPE_COLOR4F, &color_car_1, "colormode=rgb");
+	TwAddVarRW(bar, "color_car_2", TW_TYPE_COLOR3F, &color_car_2, "colormode=rgb");
+}
 
 int initWindow()
 {
@@ -25,6 +62,7 @@ int initWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+	// window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", glfwGetPrimaryMonitor(), NULL);
 	window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", NULL, NULL);
 	if (window == NULL)
 	{
@@ -43,6 +81,13 @@ int initWindow()
 		glfwTerminate();
 		return -1;
 	}
+
+	addBars();
+	glfwSetMouseButtonCallback(window, (GLFWmousebuttonfun)TwEventMouseButtonGLFW);
+	glfwSetCursorPosCallback(window, (GLFWcursorposfun)TwEventMousePosGLFW);
+	glfwSetScrollCallback(window, (GLFWscrollfun)TwEventMouseWheelGLFW);
+	glfwSetKeyCallback(window, (GLFWkeyfun)TwEventKeyGLFW);
+	glfwSetCharCallback(window, (GLFWcharfun)TwEventCharGLFW);
 
 	glClearColor(R, G, B, A);
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -119,21 +164,46 @@ void drawModel(std::vector<glm::vec2> vertices, glm::mat3 MatrizCombinada, GLuin
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 }
 
-glm::mat3 move_road = glm::mat3(1.0f);
-glm::mat3 move_road_lines = glm::mat3(1.0f);
-glm::mat3 move_car_1 = glm::mat3(1.0f);
-glm::mat3 move_car_2 = glm::mat3(1.0f);
+void randPositionCar2()
+{
+	srand(time(NULL));
+	int rand = random() % 4;
 
-char text[256];
-char state = 's';
-// s = start
-// p = play
-// e = end
+	color_car_2[0] = ((random() % 10) + 1) / 10.0;
+	color_car_2[1] = ((random() % 10) + 1) / 10.0;
+	color_car_2[2] = ((random() % 10) + 1) / 10.0;
 
-float speed = 0.01;
-float distancedrived = 0.0;
+	rand <=
+							1 &&
+					move_car_2[0][2] != 0
+			? move_car_2[0][2] = 0
+			: rand <= 2 && move_car_2[0][2] != 0.65 ? move_car_2[0][2] = 0.65 : rand <= 3 && move_car_2[0][2] != 1.3 ? move_car_2[0][2] = 1.3 : move_car_2[0][2] = 0;
 
-// void moveCar(double deltaTime)
+	move_car_2[1][2] = 2;
+}
+
+void moveScenary(double syncSpeed)
+{
+	if (move_road_lines[1][2] > -0.3)
+	{
+		move_road_lines[1][2] -= (syncSpeed * speed);
+	}
+	else
+	{
+		move_road_lines[1][2] = 0.29;
+	}
+
+	if (move_car_2[1][2] > -1)
+	{
+		move_car_2[1][2] -= (syncSpeed * speed) * 2;
+	}
+	else
+	{
+		move_car_2[1][2] = -2;
+		randPositionCar2();
+	}
+}
+
 void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
 	// VIRA CARO
@@ -164,37 +234,30 @@ void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
 			break;
 		}
 	}
-
-	// speed
-	if (key == GLFW_KEY_UP)
-	{
-		if (speed == 0)
-			speed = 0.01;
-		if (speed < 0.05)
-		{
-			speed *= 1.2;
-		}
-	}
-	if (key == GLFW_KEY_DOWN)
-	{
-		if (speed > 0.01)
-		{
-			speed *= 0.8;
-		}
-		else
-		{
-			speed = 0;
-		}
-	}
 }
 
-void randPositionCar2()
+void changeState(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-	int rand = random() % 4;
-
-	rand <= 1 && move_car_2[0][2] != 0 ? move_car_2[0][2] = 0 : rand <= 2 && move_car_2[0][2] != 0.65 ? move_car_2[0][2] = 0.65 : rand <= 3 && move_car_2[0][2] != 1.3 ? move_car_2[0][2] = 1.3 : move_car_2[0][2] = 0;
-
-	move_car_2[1][2] = 2;
+	if (key == GLFW_KEY_1)
+	{
+		strcpy(state, "start");
+	}
+	if (key == GLFW_KEY_2)
+	{
+		strcpy(state, "end");
+	}
+	if (key == GLFW_KEY_3)
+	{
+		strcpy(state, "scoreboard");
+	}
+	if (key == GLFW_KEY_4)
+	{
+		strcpy(state, "play");
+	}
+	if (key == GLFW_KEY_5)
+	{
+		strcpy(state, "settings");
+	}
 }
 
 int main(void)
@@ -222,82 +285,93 @@ int main(void)
 	randPositionCar2();
 
 	double lastTime = glfwGetTime();
-	int nbFrames = 0;
+	int fps = 0;
+
+	double lastFrameTime = 0;
+	double sync;
 	do
 	{
 		double currentTime = glfwGetTime();
-		nbFrames++;
-		double deltaTime = currentTime - lastTime;
-		if (deltaTime >= 1.0)
+
+		fps++;
+		if (currentTime - lastTime >= 1.0)
 		{
-			nbFrames = 0;
+			printf("%d fps\n", fps);
+			fps = 0;
 			lastTime += 1.0;
+
+			if (strcmp(state, "play") == 0)
+			{
+				speed *= 1.005;
+			}
 		}
+		distancedrived += (speed / 10);
+
+		sync = currentTime - lastFrameTime;
+		lastFrameTime = currentTime;
+
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(programID);
 		configLayout(vertexbuffer, colorbuffer);
 
 		// start
-		if (state == 's')
+		if (strcmp(state, "start") == 0)
 		{
-			sprintf(text, "%s", "JOGAR");
-			printText2D(text, 280, 400, 50);
+			printText2D("BRICK GAME", 120, 450, 60);
+
+			printText2D("PLAY", 370, 300, 20);
+			printText2D("SCOREBOARD", 70, 300, 20);
+			printText2D("SETTINGS", 570, 300, 20);
+
+			printText2D("EXIT", 300, 100, 50);
 		}
 
 		// end
-		if (state == 'e')
+		if (strcmp(state, "end") == 0)
 		{
+			printText2D("YOU LOSE", 200, 500, 50);
+
+			sprintf(text, "Total distance: %.2fm", distancedrived);
+			printText2D(text, 200, 450, 20);
+
+			printText2D("PLAY AGAIN", 170, 300, 50);
+			printText2D("EXIT", 300, 100, 50);
 		}
 
-		//
-		// if (state == '')
-		// {
-		// }
+		// scoreboard
+		if (strcmp(state, "scoreboard") == 0)
+		{
+			printText2D("SCOREBOARD", 170, 500, 50);
+		}
+
+		// settings
+		if (strcmp(state, "settings") == 0)
+		{
+			printText2D("SETTINGS", 170, 500, 50);
+
+			TwDraw();
+		}
 
 		// play
-		if (state == 'p')
+		if (strcmp(state, "play") == 0)
 		{
 			glfwSetKeyCallback(window, moveCar);
 
-			if (move_road_lines[1][2] > -0.3)
-			{
-				move_road_lines[1][2] -= speed;
-			}
-			else
-			{
-				move_road_lines[1][2] = -speed;
-			}
+			moveScenary(sync);
 
-			if (move_car_2[1][2] > -1)
-			{
-				move_car_2[1][2] += -speed;
-			}
-			else
-			{
-				move_car_2[1][2] = 2;
-				randPositionCar2();
-			}
+			drawModel(modelRoad, move_road, MatrixID, color_road[0], color_road[1], color_road[2]);
+			drawModel(modelLines, move_road_lines, MatrixID, color_road_lines[0], color_road_lines[1], color_road_lines[2]);
+			drawModel(modelCar, move_car_1, MatrixID, color_car_1[0], color_car_1[1], color_car_1[2]);
+			drawModel(modelCar, move_car_2, MatrixID, color_car_2[0], color_car_2[1], color_car_2[2]);
 
-			MatrizCombinada = move_road;
-			drawModel(modelRoad, MatrizCombinada, MatrixID, 0.15, 0.15, 0.15);
-
-			MatrizCombinada = move_road_lines;
-			drawModel(modelLines, MatrizCombinada, MatrixID, 1.0, 1.0, 0.0);
-
-			MatrizCombinada = move_car_1;
-			drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 1.0, 1.0);
-
-			MatrizCombinada = move_car_2;
-			drawModel(modelCar, MatrizCombinada, MatrixID, 1.0, 0.0, 1.0);
-
-			distancedrived += speed * lastTime;
-
-			sprintf(text, "%.2fm", distancedrived);
+			sprintf(text, "%.1fm", distancedrived);
 			printText2D(text, 20, 5, 20);
 
-			sprintf(text, "%.2fm/s", speed * 10);
+			sprintf(text, "%.1fm/s", speed * 10);
 			printText2D(text, 620, 5, 20);
 		}
+
+		// glfwSetKeyCallback(window, changeState);
 
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
