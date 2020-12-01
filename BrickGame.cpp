@@ -7,6 +7,13 @@ using namespace glm;
 #include "common/shader.hpp"
 #include "common/text2D.hpp"
 #include "AntTweakBar/include/AntTweakBar.h"
+#include "common/song.hpp"
+#include <iostream>
+#include <stdio.h>
+#include <queue>
+#include <glm/gtx/string_cast.hpp>
+#include <unistd.h>
+#include </usr/include/glm/gtc/matrix_transform.hpp>
 
 const GLint WIDTH = 1280, HEIGHT = 720;
 const GLfloat R = 0.0, G = 0.0, B = 0.0, A = 0.0;
@@ -16,19 +23,24 @@ glm::mat3 move_road = glm::mat3(1.0f);
 glm::mat3 move_road_lines = glm::mat3(1.0f);
 glm::mat3 move_car_1 = glm::mat3(1.0f);
 glm::mat3 move_car_2 = glm::mat3(1.0f);
+static std::vector<char *> gPathList;
 
-double color_road[] = {0.15, 0.15, 0.15};
-double color_road_lines[] = {1.0, 1.0, 0.0};
-double color_car_1[] = {1.0, 1.0, 1.0};
-double color_car_2[] = {1.0, 0.0, 1.0};
+vec3 color_road = vec3(0.15f, 0.15f, 0.15f);
+vec3 color_road_lines = vec3(1.0f, 1.0f, 0.0f);
+vec3 color_car_1 = vec3(1.0f, 0.0f, 0.0f);
+vec3 color_car_2 = vec3(0.0f, 1.0f, 0.0f);
 
+typedef struct user
+{
+	char name[10];
+	float score;
+} User;
+
+User scoreboard[5];
+
+int pauseGame = 0;
 char text[255];
-char state[20] = "play";
-// start
-// scoreboard
-// settings
-// play
-// end
+char state[20] = "start";
 
 float speed = 1;
 float distancedrived = 0.0;
@@ -42,9 +54,9 @@ void addBars()
 	TwSetParam(bar, NULL, "position", TW_PARAM_CSTRING, 1, "550 200");
 	TwSetParam(bar, NULL, "refresh", TW_PARAM_CSTRING, 1, "0.1");
 
-	TwAddVarRW(bar, "color_road", TW_TYPE_COLOR4F, &color_road, "colormode=rgb");
-	TwAddVarRW(bar, "color_road_lines", TW_TYPE_COLOR4F, &color_road_lines, "colormode=rgb");
-	TwAddVarRW(bar, "color_car_1", TW_TYPE_COLOR4F, &color_car_1, "colormode=rgb");
+	TwAddVarRW(bar, "color_road", TW_TYPE_COLOR3F, &color_road, "colormode=rgb");
+	TwAddVarRW(bar, "color_road_lines", TW_TYPE_COLOR3F, &color_road_lines, "colormode=rgb");
+	TwAddVarRW(bar, "color_car_1", TW_TYPE_COLOR3F, &color_car_1, "colormode=rgb");
 	TwAddVarRW(bar, "color_car_2", TW_TYPE_COLOR3F, &color_car_2, "colormode=rgb");
 }
 
@@ -62,8 +74,7 @@ int initWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	// window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", glfwGetPrimaryMonitor(), NULL);
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", NULL, NULL);
+	window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", glfwGetPrimaryMonitor(), NULL);
 	if (window == NULL)
 	{
 		fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
@@ -127,6 +138,26 @@ std::vector<glm::vec3> colorir(int tam, float R, float G, float B)
 		vertexColor.push_back(color);
 	}
 	return vertexColor;
+}
+
+char *MediaPath(const char *fileName)
+{
+	char *filePath = (char *)calloc(256, sizeof(char));
+
+	ssize_t len = readlink("/proc/self/exe", filePath, 256);
+	assert(len != -1);
+
+	char *filePathEnd = strrchr(filePath, '/');
+	assert(filePathEnd != NULL);
+
+	filePathEnd++; // Move past the last slash
+	filePathEnd[0] = '\0';
+
+	strcat(filePath, "common/media/");
+	strcat(filePath, fileName);
+	gPathList.push_back(filePath);
+
+	return filePath;
 }
 
 std::vector<glm::vec2> loadModel(const char *path, int z)
@@ -204,10 +235,9 @@ void moveScenary(double syncSpeed)
 	}
 }
 
-void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
+void playGame(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-	// VIRA CARO
-	if (key == GLFW_KEY_RIGHT)
+	if (key == GLFW_KEY_RIGHT && pauseGame == 0)
 	{
 		switch (action)
 		{
@@ -219,7 +249,7 @@ void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
 			break;
 		}
 	}
-	if (key == GLFW_KEY_LEFT)
+	if (key == GLFW_KEY_LEFT && pauseGame == 0)
 	{
 		switch (action)
 		{
@@ -234,29 +264,129 @@ void moveCar(GLFWwindow *window, int key, int scancode, int action, int mods)
 			break;
 		}
 	}
+
+	if (key == GLFW_KEY_ENTER)
+	{
+		switch (action)
+		{
+		case GLFW_PRESS:
+			if (pauseGame == 1)
+			{
+				pauseGame = 0;
+			}
+			else if (pauseGame == 0)
+			{
+				pauseGame = 1;
+			}
+			break;
+		}
+	}
 }
 
-void changeState(GLFWwindow *window, int key, int scancode, int action, int mods)
+void eventsStart(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
 	if (key == GLFW_KEY_1)
 	{
-		strcpy(state, "start");
+		switch (action)
+		{
+		case GLFW_PRESS:
+			strcpy(state, "play");
+
+			pauseGame = 0;
+			speed = 1;
+			distancedrived = 0.0;
+
+			break;
+		}
 	}
 	if (key == GLFW_KEY_2)
 	{
-		strcpy(state, "end");
+		switch (action)
+		{
+		case GLFW_PRESS:
+			strcpy(state, "scoreboard");
+			break;
+		}
 	}
 	if (key == GLFW_KEY_3)
 	{
-		strcpy(state, "scoreboard");
+		switch (action)
+		{
+		case GLFW_PRESS:
+			strcpy(state, "settings");
+			break;
+		}
 	}
-	if (key == GLFW_KEY_4)
+}
+
+void eventsEnd(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_1)
 	{
-		strcpy(state, "play");
+		switch (action)
+		{
+		case GLFW_PRESS:
+			killSong();
+			FMOD_Config(MediaPath("What_Is_Love_8_Bit_Remix_Cover_Version_Tribute_to_Haddaway_-_8_Bit_Universe.mp3"));
+
+			strcpy(state, "play");
+
+			pauseGame = 0;
+			speed = 1;
+			distancedrived = 0.0;
+			break;
+		}
 	}
-	if (key == GLFW_KEY_5)
+	if (key == GLFW_KEY_2)
 	{
-		strcpy(state, "settings");
+		switch (action)
+		{
+		case GLFW_PRESS:
+			killSong();
+			FMOD_Config(MediaPath("What_Is_Love_8_Bit_Remix_Cover_Version_Tribute_to_Haddaway_-_8_Bit_Universe.mp3"));
+
+			strcpy(state, "start");
+			break;
+		}
+	}
+}
+
+void eventsScoreboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_1)
+	{
+		switch (action)
+		{
+		case GLFW_PRESS:
+			strcpy(state, "start");
+			break;
+		}
+	}
+}
+
+void setScoreboard()
+{
+	User aux;
+	aux.score = 0.0;
+	strcpy(aux.name, "Player");
+
+	scoreboard[0] = aux;
+	scoreboard[1] = aux;
+	scoreboard[2] = aux;
+	scoreboard[3] = aux;
+	scoreboard[4] = aux;
+}
+
+void addScoreboard()
+{
+	User aux;
+	for (int i = 0; i < 5; i++)
+	{
+		if (scoreboard[i].score <= 0)
+		{
+			scoreboard[i].score = distancedrived;
+			break;
+		}
 	}
 }
 
@@ -276,13 +406,14 @@ int main(void)
 	glm::mat3 MatrizCombinada = glm::mat3(1.0f);
 
 	initText2D("utils/Holstein.DDS");
+	FMOD_Config(MediaPath("What_Is_Love_8_Bit_Remix_Cover_Version_Tribute_to_Haddaway_-_8_Bit_Universe.mp3"));
 
 	std::vector<glm::vec2> modelRoad = loadModel("models/road.txt", 0);
 	std::vector<glm::vec2> modelLines = loadModel("models/lines.txt", 1);
 	std::vector<glm::vec2> modelCar = loadModel("models/car.txt", 2);
 
-	move_car_2[1][2] = 2;
 	randPositionCar2();
+	setScoreboard();
 
 	double lastTime = glfwGetTime();
 	int fps = 0;
@@ -302,10 +433,14 @@ int main(void)
 
 			if (strcmp(state, "play") == 0)
 			{
-				speed *= 1.005;
+				speed += 0.05;
 			}
 		}
-		distancedrived += (speed / 10);
+
+		if (pauseGame == 0)
+		{
+			distancedrived += (speed / 10);
+		}
 
 		sync = currentTime - lastFrameTime;
 		lastFrameTime = currentTime;
@@ -317,37 +452,56 @@ int main(void)
 		// start
 		if (strcmp(state, "start") == 0)
 		{
+			glfwSetKeyCallback(window, eventsStart);
+
 			printText2D("BRICK GAME", 120, 450, 60);
 
-			printText2D("PLAY", 370, 300, 20);
-			printText2D("SCOREBOARD", 70, 300, 20);
-			printText2D("SETTINGS", 570, 300, 20);
-
-			printText2D("EXIT", 300, 100, 50);
+			printText2D("1 PLAY", 370, 300, 20);
+			printText2D("2 SCOREBOARD", 70, 300, 20);
+			printText2D("3 SETTINGS", 570, 300, 20);
 		}
 
 		// end
 		if (strcmp(state, "end") == 0)
 		{
-			printText2D("YOU LOSE", 200, 500, 50);
+			glfwSetKeyCallback(window, eventsEnd);
+
+			printText2D("YOU LOSE", 200, 500, 40);
 
 			sprintf(text, "Total distance: %.2fm", distancedrived);
 			printText2D(text, 200, 450, 20);
 
-			printText2D("PLAY AGAIN", 170, 300, 50);
-			printText2D("EXIT", 300, 100, 50);
+			printText2D("1 PLAY AGAIN", 170, 300, 40);
+			printText2D("2 HOME", 190, 200, 40);
 		}
 
 		// scoreboard
 		if (strcmp(state, "scoreboard") == 0)
 		{
-			printText2D("SCOREBOARD", 170, 500, 50);
+			glfwSetKeyCallback(window, eventsScoreboard);
+
+			printText2D("SCOREBOARD", 170, 500, 40);
+
+			for (int i = 0; i < 5; i++)
+			{
+				if (scoreboard[i].score > 0)
+				{
+					sprintf(text, "%s - %.2fm", scoreboard[i].name, scoreboard[i].score);
+					printText2D(text, 290, 400 - (i * 25), 20);
+				}
+			}
+
+			printText2D("1 HOME", 190, 200, 40);
 		}
 
 		// settings
 		if (strcmp(state, "settings") == 0)
 		{
-			printText2D("SETTINGS", 170, 500, 50);
+			glfwSetKeyCallback(window, eventsScoreboard);
+
+			printText2D("SETTINGS", 170, 500, 40);
+
+			printText2D("1 HOME", 190, 100, 40);
 
 			TwDraw();
 		}
@@ -355,9 +509,26 @@ int main(void)
 		// play
 		if (strcmp(state, "play") == 0)
 		{
-			glfwSetKeyCallback(window, moveCar);
+			FMOD_PlayPause(0);
 
-			moveScenary(sync);
+			glfwSetKeyCallback(window, playGame);
+
+			if (pauseGame == 0)
+			{
+				moveScenary(sync);
+			}
+
+			if (
+					move_car_2[0][2] == move_car_1[0][2] &&
+					move_car_2[1][2] <= move_car_1[1][2] + 0.6)
+			{
+				killSong();
+				FMOD_Config(MediaPath("SOM_DE_BATIDA_DE_CARRO_CAR_CRASHING_SOUND_Som_de_carro_batendo_para_fundo_de_Teatros_e_videos_mp3cut.mp3"));
+				addScoreboard();
+				randPositionCar2();
+				pauseGame = 1;
+				strcpy(state, "end");
+			}
 
 			drawModel(modelRoad, move_road, MatrixID, color_road[0], color_road[1], color_road[2]);
 			drawModel(modelLines, move_road_lines, MatrixID, color_road_lines[0], color_road_lines[1], color_road_lines[2]);
@@ -369,6 +540,8 @@ int main(void)
 
 			sprintf(text, "%.1fm/s", speed * 10);
 			printText2D(text, 620, 5, 20);
+
+			printText2D("ENTER PLAY/PAUSE ", 10, 550, 20);
 		}
 
 		// glfwSetKeyCallback(window, changeState);
