@@ -74,7 +74,8 @@ int initWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", glfwGetPrimaryMonitor(), NULL);
+	window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", NULL, NULL);
+	// window = glfwCreateWindow(WIDTH, HEIGHT, "Brick game", glfwGetPrimaryMonitor(), NULL);
 	if (window == NULL)
 	{
 		fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
@@ -386,6 +387,11 @@ void addScoreboard()
 		{
 			scoreboard[i].score = distancedrived;
 			break;
+		}
+		else if (i == 4)
+		{
+			setScoreboard();
+			scoreboard[0].score = distancedrived;
 		}
 	}
 }
