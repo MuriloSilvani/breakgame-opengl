@@ -21,15 +21,24 @@ else
 endif
 
 SOURCE_FILES = \
-    common/texture.cpp \
     common/shader.cpp \
+    common/texture.cpp \
+    common/text2D.cpp \
+    common/song.cpp \
+    common/FMOD/common.cpp \
+    common/FMOD/common_platform.cpp \
+
+INCLUDE_DIRS = \
+    -I common/FMOD/lowlevel/inc
+
+LOWLEVEL_LIB = common/FMOD/lowlevel/lib/${CPU}/libfmod${SUFFIX}.so
 
 Target: BrickGame
 
 all:	Target
 
 BrickGame: $(CPPSOURCES:.cpp=.o)
-	g++ $< common/shader.cpp common/text2D.cpp common/texture.cpp -o $@ -lAntTweakBar -lglfw -lGLEW -lGL
+	g++ -pthread $< ${SOURCE_FILES} ${FLAGS} -o $@ -lAntTweakBar -lglfw -lGLEW -lGL -Wl,-rpath=\$$ORIGIN/$(dir ${LOWLEVEL_LIB}) ${LOWLEVEL_LIB} ${INCLUDE_DIRS}
 
 run:
 	./BrickGame
